@@ -77,10 +77,10 @@ class RoombaSolver(Solver):
             if is_free_point:
                 roadmap.add_node(point)
 
-        nodes_list = list(roadmap.nodes)
         # Adding start and end of robot as nodes
         roadmap.add_node(robot.start)
         roadmap.add_node(robot.end)
+        nodes_list = list(roadmap.nodes)
         points_list = []
         for node in nodes_list:
             x = node.x().to_double()
@@ -185,10 +185,13 @@ class RoombaSolver(Solver):
         #     )  # Add the current path for the current robot to the path collection
 
         # Check if there is a possible path for the robot in the graph
+        print("HERE !!!!")
         if not nx.algorithms.has_path(self._roadmap, robot.start, robot.end):
             self.log(f"No path found for robot")
+            print("no path !!!!")
             return PathCollection()
         # Get the shortest path for the robot
+        print("After if !!!!")
         found_path = nx.algorithms.shortest_path(self._roadmap, robot.start, robot.end)
         points = [
             PathPoint(point) for point in found_path
@@ -206,7 +209,7 @@ class RoombaSolver(Solver):
         # Returns the configurable properties of the solver (presented in gui)
         # in format of: 'property_name': (Description, Default value, Type)
         return {
-            "sample_points": ("Number of points to sample on map", 100, int),
+            "sample_points": ("Number of points to sample on map", 2000, int),
             "samples_for_edge": (
                 "Number of sample along desired edge to verify it is valid",
                 50,

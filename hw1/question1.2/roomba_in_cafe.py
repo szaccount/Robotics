@@ -10,7 +10,7 @@ with open("coffee_shop.json", "r") as fp:
     scene = Scene.from_dict(json.load(fp))
 
 # "Solve" the scene (find paths for the robots)
-solver = RoombaSolver(sample_points=10000, samples_for_edge=10, num_neighbors=15)
+solver = RoombaSolver(sample_points=5000, samples_for_edge=10, num_neighbors=15)
 solver.load_scene(scene)
 path_collection = solver.solve()  # Returns a PathCollection object
 
@@ -34,12 +34,12 @@ start_gui(scene, solver)
 
 # # Option 2 - Use solver's class type to create a new one:
 # print("Second gui")
-# start_gui(scene, RandomSolver)
+# start_gui(scene, RoombaSolver)
 
 # # Option 3 - Use solver's class name to create a new one (must pass solver's module):
 # print("Third gui")
-# start_gui(scene, "RandomSolver", "RandomSolver.py")
+# start_gui(scene, "RoombaSolver", "RoombaSolver.py")
 
 # # Option 4 - Passing the path to the scene json file
 # print("Fourth gui")
-# start_gui("basic_scene.json", solver)
+# start_gui("coffee_shop.json", solver)
