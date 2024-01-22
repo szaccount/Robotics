@@ -122,6 +122,7 @@ def main():
         len(args) == NUM_ARGS + 1
     ), "Passed wrong number of arguments, expected {NUM_ARGS=}"
 
+    # First argument is the name of the code file.
     sx_str, sy_str, sz_str, dx_str, dy_str, dz_str, filename = sys.argv[1:]
     sx = int(sx_str)
     sy = int(sy_str)
