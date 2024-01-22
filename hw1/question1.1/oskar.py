@@ -130,7 +130,7 @@ def main():
     dx = int(dx_str)
     dy = int(dy_str)
     dz = int(dz_str)
-    # print(f"{sx=},{sy=},{sz=},{dx=},{dy=},{dz=},{filename=}") # TODO DELETE
+
     file_reader = open(filename, "r")
     file_content = file_reader.readlines()
     file_reader.close()
