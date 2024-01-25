@@ -7,8 +7,6 @@ from discopygal.geometry_utils.bounding_boxes import calc_scene_bounding_box
 from discopygal.geometry_utils.collision_detection import ObjectCollisionDetection
 from discopygal.bindings import *
 
-# !!!!!! my imports
-import numpy as np
 from sklearn.neighbors import NearestNeighbors
 
 
