@@ -163,9 +163,9 @@ class ImprovedRodPRM(Solver):
 
         # Build collision detection for each robot
         for robot in scene.robots:
-            self.collision_detection[robot] = (
-                collision_detection.ObjectCollisionDetection(scene.obstacles, robot)
-            )
+            self.collision_detection[
+                robot
+            ] = collision_detection.ObjectCollisionDetection(scene.obstacles, robot)
 
         ################
         # Build the PRM

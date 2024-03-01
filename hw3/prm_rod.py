@@ -238,6 +238,10 @@ class BasicRodPRM(Solver):
                         tensor_path[i], tensor_path[i + 1]
                     )["clockwise"]
                 points.append(
+                    PathPoint(
+                        point[0], data={"theta": point[1], "clockwise": clockwise}
+                    )
+                )
             path = Path(points)
             path_collection.add_robot_path(robot, path)
 
