@@ -19,7 +19,7 @@ from discopygal.geometry_utils import collision_detection, conversions
 from discopygal.solvers.Solver import Solver
 
 
-class BasicRodPRM(Solver):
+class ImprovedRodPRM(Solver):
     """
     The basic implementation of a Probabilistic Road Map (PRM) solver, modified for rod robot.
     Supports single-robot motion planning.
@@ -98,7 +98,7 @@ class BasicRodPRM(Solver):
         :param d: arguments dict
         :type d: :class:`dict`
         """
-        return BasicRodPRM(
+        return ImprovedRodPRM(
             d["num_landmarks"],
             d["k"],
             FT(d["bounding_margin_width_factor"]),
@@ -140,6 +140,7 @@ class BasicRodPRM(Solver):
         while not self.collision_detection[robot].is_point_valid(sample):
             sample = (self.sampler.sample(), FT(random.random() * 2 * math.pi))
         return sample
+
     def point2vec3(self, point):
         """
         Convert a point (xy, theta) to a 3D vector
@@ -238,6 +239,10 @@ class BasicRodPRM(Solver):
                         tensor_path[i], tensor_path[i + 1]
                     )["clockwise"]
                 points.append(
+                    PathPoint(
+                        point[0], data={"theta": point[1], "clockwise": clockwise}
+                    )
+                )
             path = Path(points)
             path_collection.add_robot_path(robot, path)
 
