@@ -185,6 +185,20 @@ class ImprovedRodPRM(Solver):
             [point[0].x().to_double(), point[0].y().to_double(), point[1].to_double()],
         )
 
+    def point2vec3WithDegrees(self, point):
+        """
+        Convert a point (xy, theta) to a 3D vector, with its angle in degrees
+        """
+        if type(point[0]) == Point_2:
+            point_vec = self.point2vec3(point)
+        else:
+            point_vec = point
+
+        return Point_d(
+            3,
+            [point_vec[0], point_vec[1], (point_vec[2] / (2 * math.pi)) * 360],
+        )
+
     def load_scene(self, scene: Scene):
         """
         Load a scene into the solver.
@@ -237,11 +251,14 @@ class ImprovedRodPRM(Solver):
             neighbors = self.nearest_neighbors.k_nearest(
                 self.point2vec3(point), self.k + 1
             )
-            for neighbor in neighbors:
-                neighbor = (Point_2(neighbor[0], neighbor[1]), neighbor[2])
+            point_vec = self.point2vec3WithDegrees(point)
+            for neighbor_vec in neighbors:
+                neighbor = (Point_2(neighbor_vec[0], neighbor_vec[1]), neighbor_vec[2])
+                neighbor_vec = self.point2vec3WithDegrees(neighbor_vec)
                 for clockwise in [True, False]:
                     if self.collision_free(point, neighbor, clockwise):
-                        weight = self.metric.dist(point[0], neighbor[0]).to_double()
+                        # weight = self.metric.dist(point[0], neighbor[0]).to_double() !!!!!!!!!!!!!!!!!
+                        weight = self.metric.dist(point_vec, neighbor_vec).to_double()
                         self.roadmap.add_edge(
                             point, neighbor, weight=weight, clockwise=clockwise
                         )
