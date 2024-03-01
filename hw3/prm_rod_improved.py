@@ -141,6 +141,41 @@ class ImprovedRodPRM(Solver):
             sample = (self.sampler.sample(), FT(random.random() * 2 * math.pi))
         return sample
 
+    def sample_gaussian(self):
+        """
+        Samples a free point near a forbidden point, using gaussian method
+        """
+        robot = self.scene.robots[0]
+        while True:
+            sample = (self.sampler.sample(), FT(random.random() * 2 * math.pi))
+            MEAN_DISTANCE = 2
+            DEVIATION_DISTANCE = 1
+            dist = abs(random.gauss(MEAN_DISTANCE, DEVIATION_DISTANCE))
+            delta1 = (random.random() * 2 * dist) - dist
+
+            remaining_dist = max((dist**2) - (delta1**2), 0)
+            sqrt_remaining = math.sqrt(remaining_dist)
+            theta_delta = (random.random() * 2 * sqrt_remaining) - sqrt_remaining
+
+            remaining_dist = max(remaining_dist - (theta_delta**2), 0)
+            sqrt_remaining = math.sqrt(remaining_dist)
+            delta2 = (random.random() * 2 * sqrt_remaining) - sqrt_remaining
+
+            x_delta, y_delta = delta1, delta2
+            if random.randint(0, 1):
+                x_delta, y_delta = y_delta, x_delta
+
+            sample2 = (
+                Point_2(sample[0][0] + x_delta, sample[0][1] + y_delta),
+                sample[1] + theta_delta,
+            )
+
+            if self.collision_detection[robot].is_point_valid(sample):
+                if not self.collision_detection[robot].is_point_valid(sample2):
+                    return sample
+            elif self.collision_detection[robot].is_point_valid(sample2):
+                return sample2
+
     def point2vec3(self, point):
         """
         Convert a point (xy, theta) to a 3D vector
@@ -179,8 +214,16 @@ class ImprovedRodPRM(Solver):
         self.roadmap.add_node(self.end)
 
         # Add valid points
-        for i in range(self.num_landmarks):
+        for i in range(self.num_landmarks / 2):
             p_rand = self.sample_free()
+            self.roadmap.add_node(p_rand)
+            if i % 100 == 0 and self.verbose:
+                print("added", i, "landmarks in PRM", file=self.writer)
+
+        # !!!!!!!!!!!!!!!!!!!!!!!!! need to ration with the rest of the points
+        # Add points using gaussian sampling method
+        for i in range(self.num_landmarks / 2):
+            p_rand = self.sample_gaussian()
             self.roadmap.add_node(p_rand)
             if i % 100 == 0 and self.verbose:
                 print("added", i, "landmarks in PRM", file=self.writer)
