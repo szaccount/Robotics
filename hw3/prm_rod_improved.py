@@ -149,7 +149,7 @@ class ImprovedRodPRM(Solver):
         while True:
             sample = (self.sampler.sample(), FT(random.random() * 2 * math.pi))
             MEAN_DISTANCE = 1
-            DEVIATION_DISTANCE = 0.5
+            DEVIATION_DISTANCE = 1
             dist = abs(random.gauss(MEAN_DISTANCE, DEVIATION_DISTANCE))
             delta1 = (random.random() * 2 * dist) - dist
 
@@ -227,7 +227,7 @@ class ImprovedRodPRM(Solver):
         self.roadmap.add_node(self.start)
         self.roadmap.add_node(self.end)
 
-        num_marks_uniform = math.floor(self.num_landmarks / 4)
+        num_marks_uniform = math.floor(self.num_landmarks / 10)
         num_marks_gaussian = self.num_landmarks - num_marks_uniform
         # Add valid points
         for i in range(num_marks_uniform):
