@@ -18,6 +18,57 @@ from discopygal.bindings import *
 from discopygal.geometry_utils import collision_detection, conversions
 from discopygal.solvers.Solver import Solver
 
+MAX_ANGLE = 2 * math.pi
+
+
+class Metric_Rod(Metric):
+    """
+    Implementation of a metric that takes into account the rotation of the rod.
+    """
+
+    @staticmethod
+    def dist(
+        pos1,
+        pos2,
+        clockwise,
+        weight_points=1,
+        weight_rotation=1,
+        points_metric=Metric_Euclidean,
+    ):
+        """
+        Return distance measure between two positions for the rod, from pos1 to pos2.
+        Takes into account the rotation of the rod and if its clockwise or counter clockwise.
+        Also, allows specifying weights for the distance between points and for the rotation part.
+
+        :param pos1: first position.
+        :type pos1: (:class:`~discopygal.bindings.Point_2`, :class:`~discopygal.bindings.FT`)
+        :param pos2: second position
+        :type pos2: (:class:`~discopygal.bindings.Point_2`, :class:`~discopygal.bindings.FT`)
+        :param clockwise: direction of the angle change
+        :type clockwise: bool
+        :param weight_points: weight of the points distance part
+        :param weight_points: :class:`~discopygal.bindings.FT`
+        :param weight_rotation: weight of the rotation distance part
+        :param weight_rotation: :class:`~discopygal.bindings.FT`
+
+        :return: distance measure between p and q
+        :rtype: :class:`~discopygal.bindings.FT`
+        """
+        pos1_p, pos1_theta = pos1[0], pos1[1]
+        pos2_p, pos2_theta = pos2[0], pos2[1]
+        points_dist = points_metric(pos1_p, pos2_p)
+        if clockwise:
+            if pos2_theta <= pos1_theta:
+                rot_dist = pos1_theta - pos2_theta
+            else:
+                rot_dist = pos1_theta + (MAX_ANGLE - pos2_theta)
+        else:
+            if pos2_theta <= pos1_theta:
+                rot_dist = pos2_theta + (MAX_ANGLE - pos1_theta)
+            else:
+                rot_dist = pos2_theta - pos1_theta
+        return (weight_points * points_dist) + (weight_rotation * rot_dist)
+
 
 class RodRRT(Solver):
     """
@@ -28,6 +79,8 @@ class RodRRT(Solver):
 
     :param num_landmarks: number of landmarks to sample
     :type num_landmarks: :class:`int`
+    :param eta: max length for new RRT edge.
+    :type eta: :class:`~discopygal.bindings.FT`
     :param nearest_neighbors: a nearest neighbors algorithm. if None then use sklearn implementation
     :type nearest_neighbors: :class:`~discopygal.solvers.nearest_neighbors.NearestNeighbors` or :class:`None`
     :param metric: a metric for weighing edges, can be different then the nearest_neighbors metric!
@@ -40,13 +93,17 @@ class RodRRT(Solver):
     def __init__(
         self,
         num_landmarks,
+        # !!!!!!!!!!!!!!!!!! how to choose eta
+        eta=10,
         bounding_margin_width_factor=Solver.DEFAULT_BOUNDS_MARGIN_FACTOR,
-        nearest_neighbors=None,
+        nearest_neighbors=None,  #!!!!!!!!!!!!!!!! not needed
         metric=None,
         sampler=None,
     ):
         super().__init__(bounding_margin_width_factor)
         self.num_landmarks = num_landmarks
+
+        self.eta = eta
 
         self.nearest_neighbors: NearestNeighbors = nearest_neighbors
         if self.nearest_neighbors is None:
@@ -77,6 +134,7 @@ class RodRRT(Solver):
         """
         return {
             "num_landmarks": ("Number of Landmarks:", 1000, int),
+            "eta": ("Eta, max distance for RRT edge:", 10, FT),
             "bounding_margin_width_factor": (
                 "Margin width factor (for bounding box):",
                 0,
@@ -95,6 +153,7 @@ class RodRRT(Solver):
         """
         return RodRRT(
             d["num_landmarks"],
+            FT(d["eta"]),
             FT(d["bounding_margin_width_factor"]),
             None,
             None,
@@ -129,10 +188,10 @@ class RodRRT(Solver):
         """
         Sample a free random point
         """
-        sample = (self.sampler.sample(), FT(random.random() * 2 * math.pi))
+        sample = (self.sampler.sample(), FT(random.random() * MAX_ANGLE))
         robot = self.scene.robots[0]
         while not self.collision_detection[robot].is_point_valid(sample):
-            sample = (self.sampler.sample(), FT(random.random() * 2 * math.pi))
+            sample = (self.sampler.sample(), FT(random.random() * MAX_ANGLE))
         return sample
 
     def point2vec3(self, point):
@@ -155,7 +214,7 @@ class RodRRT(Solver):
 
         return Point_d(
             3,
-            [point_vec[0], point_vec[1], (point_vec[2] / (2 * math.pi)) * 360],
+            [point_vec[0], point_vec[1], (point_vec[2] / (MAX_ANGLE)) * 360],
         )
 
     def load_scene(self, scene: Scene):
@@ -184,23 +243,22 @@ class RodRRT(Solver):
         self.start = scene.robots[0].start
         self.end = scene.robots[0].end
         self.roadmap.add_node(self.start)
-        # self.roadmap.add_node(self.end)
 
-        # Add valid points
-        for i in range(num_marks_uniform):
+        # Add points to the tree
+        for i in range(self.num_landmarks):
             p_rand = self.sample_free()
+            # !!!!!!!!!!!!!!!!!!!!! maybe check not adding existing node
+            # !!!!!!!!!!!!!!!!!!!!! once in 100 rounds try to add the target node
+            # self.nearest_neighbors.fit(list(map(self.point2vec3, self.roadmap.nodes))) #!!!!!!
+            p_rand_vec = self.point2vec3(p_rand)
+            neighbors = self.nearest_neighbors.k_nearest(p_rand_vec, 1)
+            nearest_node_in_tree = neighbors[0]
+            p_new = self.steer_to_point(
+                nearest_node_in_tree,
+            )
             self.roadmap.add_node(p_rand)
             if i % 100 == 0 and self.verbose:
                 print("added", i, "landmarks in PRM", file=self.writer)
-
-        # Add points using gaussian sampling method
-        for i in range(num_marks_gaussian):
-            p_rand = self.sample_gaussian()
-            self.roadmap.add_node(p_rand)
-            if i % 100 == 0 and self.verbose:
-                print("added", i, "gaussian landmarks in PRM", file=self.writer)
-
-        self.nearest_neighbors.fit(list(map(self.point2vec3, self.roadmap.nodes)))
 
         # Connect all points to their k nearest neighbors
         last_nodes = list(self.roadmap.nodes)
