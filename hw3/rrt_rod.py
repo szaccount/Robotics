@@ -19,6 +19,7 @@ from discopygal.geometry_utils import collision_detection, conversions
 from discopygal.solvers.Solver import Solver
 
 MAX_ANGLE = 2 * math.pi
+MAX_ANGLE_FT = FT(MAX_ANGLE)
 
 
 class Metric_Rod(Metric):
@@ -56,19 +57,21 @@ class Metric_Rod(Metric):
         """
         pos1_p, pos1_theta = pos1[0], pos1[1]
         pos2_p, pos2_theta = pos2[0], pos2[1]
-        points_dist = points_metric(pos1_p, pos2_p)
+        points_dist = points_metric.dist(pos1_p, pos2_p)
         if clockwise:
             if pos2_theta <= pos1_theta:
                 rot_dist = pos1_theta - pos2_theta
             else:
-                rot_dist = pos1_theta + (MAX_ANGLE - pos2_theta)
+                rot_dist = pos1_theta + (MAX_ANGLE_FT - pos2_theta)
         else:
             if pos2_theta <= pos1_theta:
-                rot_dist = pos2_theta + (MAX_ANGLE - pos1_theta)
+                rot_dist = pos2_theta + (MAX_ANGLE_FT - pos1_theta)
             else:
                 rot_dist = pos2_theta - pos1_theta
-        d_squared = (weight_points * (points_dist**2)) + (
-            weight_rotation * (rot_dist**2)
+        w_points_FT = FT(weight_points)
+        w_rotation_FT = FT(weight_rotation)
+        d_squared = (w_points_FT * (points_dist * points_dist)) + (
+            w_rotation_FT * (rot_dist * rot_dist)
         )
         d = math.sqrt(d_squared.to_double())
         return FT(d)
@@ -98,7 +101,7 @@ class RodRRT(Solver):
         self,
         num_landmarks,
         # !!!!!!!!!!!!!!!!!! how to choose eta
-        eta=1,
+        eta=0.1,
         bounding_margin_width_factor=Solver.DEFAULT_BOUNDS_MARGIN_FACTOR,
         nearest_neighbors=None,  #!!!!!!!!!!!!!!!! not needed
         metric=None,
@@ -138,7 +141,7 @@ class RodRRT(Solver):
         """
         return {
             "num_landmarks": ("Number of Landmarks:", 1000, int),
-            "eta": ("Eta, max distance for RRT edge:", 10, FT),
+            "eta": ("Eta, max distance for RRT edge:", 0.1, FT),
             "bounding_margin_width_factor": (
                 "Margin width factor (for bounding box):",
                 0,
@@ -227,36 +230,65 @@ class RodRRT(Solver):
         """
         d = self.metric.dist(nearest_node, rand_node, is_clockwise)
         ratio = self.eta / d
+        comp_ratio = FT(1) - ratio
         if ratio >= 1:
             # The distance to the new point is smaller than the max allowed
             return rand_node
         # Finding node in between which is at distance `eta` from `nearest_node`
         p_nearest, theta_nearest = nearest_node[0], nearest_node[1]
         p_rand, theta_rand = rand_node[0], rand_node[1]
-        x_coor_new = ratio * (p_rand.x()) + (1 - ratio) * (p_nearest.x())
-        y_coor_new = ratio * (p_rand.y()) + (1 - ratio) * (p_nearest.y())
+        x_coor_new = ratio * (p_rand.x()) + comp_ratio * (p_nearest.x())
+        y_coor_new = ratio * (p_rand.y()) + comp_ratio * (p_nearest.y())
         if is_clockwise:
             if theta_rand <= theta_nearest:
-                theta_new = ratio * (theta_rand) + (1 - ratio) * (theta_nearest)
+                theta_new = ratio * (theta_rand) + comp_ratio * (theta_nearest)
             else:
-                theta_nearest_tag = -1 * theta_nearest
-                theta_rand_tag = MAX_ANGLE - theta_rand
-                theta_new = ratio * (theta_rand_tag) + (1 - ratio) * (theta_nearest_tag)
+                theta_nearest_tag = -theta_nearest
+                theta_rand_tag = MAX_ANGLE_FT - theta_rand
+                theta_new = ratio * (theta_rand_tag) + comp_ratio * (theta_nearest_tag)
                 if theta_new < 0:
-                    theta_new = -1 * theta_new
+                    theta_new = -theta_new
                 else:
-                    theta_new = MAX_ANGLE - theta_new
+                    theta_new = MAX_ANGLE_FT - theta_new
         else:
             if theta_rand >= theta_nearest:
-                theta_new = ratio * (theta_rand) + (1 - ratio) * (theta_nearest)
+                theta_new = ratio * (theta_rand) + comp_ratio * (theta_nearest)
             else:
-                theta_nearest_tag = -1 * (MAX_ANGLE - theta_nearest)
+                theta_nearest_tag = -(MAX_ANGLE_FT - theta_nearest)
                 theta_rand_tag = theta_rand
-                theta_new = ratio * (theta_rand_tag) + (1 - ratio) * (theta_nearest_tag)
+                theta_new = ratio * (theta_rand_tag) + comp_ratio * (theta_nearest_tag)
                 if theta_new < 0:
-                    theta_new = MAX_ANGLE - (-1 * theta_new)
+                    # MAX_ANGLE_FT - (-1 * theta_new)
+                    theta_new = MAX_ANGLE_FT + theta_new
 
         return (Point_2(x_coor_new, y_coor_new), theta_new)
+
+    def find_nearest_node(self, p_rand):
+        """
+        Returns (nearest_node, is_clockwise)
+        """
+        nodes = list(self.roadmap.nodes)
+        is_clockwise = True
+        nearest_clockwise = nodes[0]
+        min_d_clockwise = self.metric.dist(nearest_clockwise, p_rand, is_clockwise)
+        for node in nodes[1:]:
+            d = self.metric.dist(node, p_rand, is_clockwise)
+            if d < min_d_clockwise:
+                min_d_clockwise = d
+                nearest_clockwise = node
+
+        is_clockwise = False
+        nearest_counter = nodes[0]
+        min_d_counter = self.metric.dist(nearest_counter, p_rand, is_clockwise)
+        for node in nodes[1:]:
+            d = self.metric.dist(node, p_rand, is_clockwise)
+            if d < min_d_counter:
+                min_d_counter = d
+                nearest_counter = node
+
+        if min_d_clockwise < min_d_counter:
+            return (nearest_clockwise, True)
+        return (nearest_counter, False)
 
     def load_scene(self, scene: Scene):
         """
@@ -294,38 +326,27 @@ class RodRRT(Solver):
             # p_rand_vec = self.point2vec3(p_rand)
             # neighbors = self.nearest_neighbors.k_nearest(p_rand_vec, 1)
             # nearest_node = neighbors[0]
+            nearest_node, is_clockwise = self.find_nearest_node(p_rand)
             p_new = self.steer_to_point(nearest_node, p_rand, is_clockwise)
-            self.roadmap.add_node(p_rand)
-            if i % 100 == 0 and self.verbose:
-                print("added", i, "landmarks in PRM", file=self.writer)
-
-        # Connect all points to their k nearest neighbors
-        last_nodes = list(self.roadmap.nodes)
-        for cnt, point in enumerate(last_nodes):
-            neighbors = self.nearest_neighbors.k_nearest(self.point2vec3(point), 1 + 1)
-            neighbors = neighbors[1:]
-            point_vec = self.point2vec3WithDegrees(point)
-            for neighbor_vec in neighbors:
-                neighbor = (Point_2(neighbor_vec[0], neighbor_vec[1]), neighbor_vec[2])
-                neighbor_vec = self.point2vec3WithDegrees(neighbor_vec)
-                for clockwise in [True, False]:
-                    if self.collision_free(point, neighbor, clockwise):
-                        # weight = self.metric.dist(point[0], neighbor[0]).to_double() !!!!!!!!!!!!!!!!!
-                        weight = self.metric.dist(point_vec, neighbor_vec).to_double()
-                        self.roadmap.add_edge(
-                            point, neighbor, weight=weight, clockwise=clockwise
-                        )
-                        self.roadmap.add_edge(
-                            neighbor, point, weight=weight, clockwise=(not clockwise)
-                        )
-
-            if cnt % 100 == 0 and self.verbose:
-                print(
-                    "connected",
-                    cnt,
-                    "landmarks to their nearest neighbors",
-                    file=self.writer,
+            # !!!!!!!! probably need to switch order
+            if self.collision_free(p_new, nearest_node, is_clockwise):
+                self.roadmap.add_node(p_new)
+                weight = self.metric.dist(nearest_node, p_new, is_clockwise).to_double()
+                self.roadmap.add_edge(
+                    p_new, nearest_node, weight=weight, clockwise=is_clockwise
                 )
+            if i % 100 == 0 and self.verbose:
+                print("Tried adding", i, "landmarks in RRT", file=self.writer)
+
+        # Try adding the end point
+        p_new = self.end
+        nearest_node, is_clockwise = self.find_nearest_node(p_new)
+        self.roadmap.add_node(p_new)
+        if self.collision_free(p_new, nearest_node, is_clockwise):
+            weight = self.metric.dist(nearest_node, p_new, is_clockwise).to_double()
+            self.roadmap.add_edge(
+                p_new, nearest_node, weight=weight, clockwise=is_clockwise
+            )
 
     def solve(self):
         """
