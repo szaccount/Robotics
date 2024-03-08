@@ -101,7 +101,7 @@ class RodRRT(Solver):
         self,
         num_landmarks,
         # !!!!!!!!!!!!!!!!!! how to choose eta
-        eta=0.1,
+        eta=1,
         bounding_margin_width_factor=Solver.DEFAULT_BOUNDS_MARGIN_FACTOR,
         nearest_neighbors=None,  #!!!!!!!!!!!!!!!! not needed
         metric=None,
@@ -140,8 +140,8 @@ class RodRRT(Solver):
         :rtype: :class:`dict`
         """
         return {
-            "num_landmarks": ("Number of Landmarks:", 1000, int),
-            "eta": ("Eta, max distance for RRT edge:", 0.1, FT),
+            "num_landmarks": ("Number of Landmarks:", 500, int),
+            "eta": ("Eta, max distance for RRT edge:", 1, FT),
             "bounding_margin_width_factor": (
                 "Margin width factor (for bounding box):",
                 0,
@@ -290,6 +290,15 @@ class RodRRT(Solver):
             return (nearest_clockwise, True)
         return (nearest_counter, False)
 
+    def same_configuration(self, p1, p2):
+        p1_point, p1_angle = p1[0], p1[1]
+        p2_point, p2_angle = p2[0], p2[1]
+        return (
+            p1_point.x() == p2_point.x()
+            and p1_point.y() == p2_point.y()
+            and p1_angle == p2_angle
+        )
+
     def load_scene(self, scene: Scene):
         """
         Load a scene into the solver.
@@ -317,19 +326,22 @@ class RodRRT(Solver):
         self.end = scene.robots[0].end
         self.roadmap.add_node(self.start)
 
+        added_end = False
         # Add points to the tree
         for i in range(self.num_landmarks):
             p_rand = self.sample_free()
             # !!!!!!!!!!!!!!!!!!!!! maybe check not adding existing node
             # !!!!!!!!!!!!!!!!!!!!! once in 100 rounds try to add the target node
-            # self.nearest_neighbors.fit(list(map(self.point2vec3, self.roadmap.nodes))) #!!!!!!
-            # p_rand_vec = self.point2vec3(p_rand)
-            # neighbors = self.nearest_neighbors.k_nearest(p_rand_vec, 1)
-            # nearest_node = neighbors[0]
+            if i % 100 == 0 and not added_end:
+                # Trying to add the end node
+                p_rand = self.end
             nearest_node, is_clockwise = self.find_nearest_node(p_rand)
             p_new = self.steer_to_point(nearest_node, p_rand, is_clockwise)
             # !!!!!!!! probably need to switch order
             if self.collision_free(nearest_node, p_new, is_clockwise):
+                if self.same_configuration(self.end, p_new):
+                    print("Same configuration ##########", file=self.writer)
+                    added_end = True
                 self.roadmap.add_node(p_new)
                 weight = self.metric.dist(nearest_node, p_new, is_clockwise).to_double()
                 self.roadmap.add_edge(
@@ -341,11 +353,22 @@ class RodRRT(Solver):
         # Try adding the end point
         p_new = self.end
         nearest_node, is_clockwise = self.find_nearest_node(p_new)
+        print(f"nearest node to the {self.end=} is {nearest_node=}", file=self.writer)
         self.roadmap.add_node(p_new)
         if self.collision_free(nearest_node, p_new, is_clockwise):
+            print("Edge to end is collision free", file=self.writer)
             weight = self.metric.dist(nearest_node, p_new, is_clockwise).to_double()
             self.roadmap.add_edge(
                 nearest_node, p_new, weight=weight, clockwise=is_clockwise
+            )
+        elif self.collision_free(nearest_node, p_new, (not is_clockwise)):
+            # Trying by rotating to the other direction
+            print("Edge to end is collision free on second try", file=self.writer)
+            weight = self.metric.dist(
+                nearest_node, p_new, (not is_clockwise)
+            ).to_double()
+            self.roadmap.add_edge(
+                nearest_node, p_new, weight=weight, clockwise=(not is_clockwise)
             )
 
     def solve(self):
