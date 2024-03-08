@@ -329,11 +329,11 @@ class RodRRT(Solver):
             nearest_node, is_clockwise = self.find_nearest_node(p_rand)
             p_new = self.steer_to_point(nearest_node, p_rand, is_clockwise)
             # !!!!!!!! probably need to switch order
-            if self.collision_free(p_new, nearest_node, is_clockwise):
+            if self.collision_free(nearest_node, p_new, is_clockwise):
                 self.roadmap.add_node(p_new)
                 weight = self.metric.dist(nearest_node, p_new, is_clockwise).to_double()
                 self.roadmap.add_edge(
-                    p_new, nearest_node, weight=weight, clockwise=is_clockwise
+                    nearest_node, p_new, weight=weight, clockwise=is_clockwise
                 )
             if i % 100 == 0 and self.verbose:
                 print("Tried adding", i, "landmarks in RRT", file=self.writer)
@@ -342,10 +342,10 @@ class RodRRT(Solver):
         p_new = self.end
         nearest_node, is_clockwise = self.find_nearest_node(p_new)
         self.roadmap.add_node(p_new)
-        if self.collision_free(p_new, nearest_node, is_clockwise):
+        if self.collision_free(nearest_node, p_new, is_clockwise):
             weight = self.metric.dist(nearest_node, p_new, is_clockwise).to_double()
             self.roadmap.add_edge(
-                p_new, nearest_node, weight=weight, clockwise=is_clockwise
+                nearest_node, p_new, weight=weight, clockwise=is_clockwise
             )
 
     def solve(self):
