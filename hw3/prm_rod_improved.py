@@ -39,11 +39,15 @@ class ImprovedRodPRM(Solver):
     :type sampler: :class:`~discopygal.solvers.samplers.Sampler`
     """
 
+    # MAX_ANGLE = 2 * math.pi
+    MAX_ANGLE_FT = FT(2 * math.pi)
+
     def __init__(
         self,
         num_landmarks,
         k,
         bounding_margin_width_factor=Solver.DEFAULT_BOUNDS_MARGIN_FACTOR,
+        gaussian_ratio=0.9,
         nearest_neighbors=None,
         metric=None,
         sampler=None,
@@ -51,6 +55,11 @@ class ImprovedRodPRM(Solver):
         super().__init__(bounding_margin_width_factor)
         self.num_landmarks = num_landmarks
         self.k = k
+        self.gaussian_ratio = gaussian_ratio
+        if self.gaussian_ratio > 1:
+            self.gaussian_ratio = 1
+        elif self.gaussian_ratio < 0:
+            self.gaussian_ratio = 0
 
         self.nearest_neighbors: NearestNeighbors = nearest_neighbors
         if self.nearest_neighbors is None:
@@ -87,6 +96,7 @@ class ImprovedRodPRM(Solver):
                 0,
                 FT,
             ),
+            "gaussian_ratio": ("ratio of the samples that are gaussian:", 0.9, float),
         }
 
     @staticmethod
@@ -102,6 +112,7 @@ class ImprovedRodPRM(Solver):
             d["num_landmarks"],
             d["k"],
             FT(d["bounding_margin_width_factor"]),
+            d["gaussian_ratio"],
             None,
             None,
             None,
@@ -196,8 +207,37 @@ class ImprovedRodPRM(Solver):
 
         return Point_d(
             3,
-            [point_vec[0], point_vec[1], (point_vec[2] / (2 * math.pi)) * 360],
+            [point_vec[0], point_vec[1], (point_vec[2] / 2 * math.pi) * 360],
         )
+
+    def distance_with_angle(
+        self, p1_vec, p2_vec, is_clockwise, weight_points=1, weight_rotation=1
+    ):
+        """
+        Computes distance between p1, p2 with taking into account the rotation
+        """
+        pos1_p_x, pos1_p_y, pos1_theta = p1_vec[0], p1_vec[1], FT(p1_vec[2])
+        pos2_p_x, pos2_p_y, pos2_theta = p2_vec[0], p2_vec[1], FT(p2_vec[2])
+        pos1_p = Point_2(pos1_p_x, pos1_p_y)
+        pos2_p = Point_2(pos2_p_x, pos2_p_y)
+        points_dist = self.metric.dist(pos1_p, pos2_p)
+        if is_clockwise:
+            if pos2_theta <= pos1_theta:
+                rot_dist = pos1_theta - pos2_theta
+            else:
+                rot_dist = pos1_theta + (self.MAX_ANGLE_FT - pos2_theta)
+        else:
+            if pos2_theta <= pos1_theta:
+                rot_dist = pos2_theta + (self.MAX_ANGLE_FT - pos1_theta)
+            else:
+                rot_dist = pos2_theta - pos1_theta
+        w_points_FT = FT(weight_points)
+        w_rotation_FT = FT(weight_rotation)
+        d_squared = (w_points_FT * (points_dist * points_dist)) + (
+            w_rotation_FT * (rot_dist * rot_dist)
+        )
+        d = math.sqrt(d_squared.to_double())
+        return d
 
     def load_scene(self, scene: Scene):
         """
@@ -227,8 +267,8 @@ class ImprovedRodPRM(Solver):
         self.roadmap.add_node(self.start)
         self.roadmap.add_node(self.end)
 
-        num_marks_uniform = math.floor(self.num_landmarks / 10)
-        num_marks_gaussian = self.num_landmarks - num_marks_uniform
+        num_marks_gaussian = math.ceil(self.num_landmarks * self.gaussian_ratio)
+        num_marks_uniform = self.num_landmarks - num_marks_gaussian
         # Add valid points
         for i in range(num_marks_uniform):
             p_rand = self.sample_free()
@@ -251,14 +291,18 @@ class ImprovedRodPRM(Solver):
             neighbors = self.nearest_neighbors.k_nearest(
                 self.point2vec3(point), self.k + 1
             )
-            point_vec = self.point2vec3WithDegrees(point)
+            # point_vec = self.point2vec3WithDegrees(point)
+            point_vec = self.point2vec3(point)
             for neighbor_vec in neighbors:
                 neighbor = (Point_2(neighbor_vec[0], neighbor_vec[1]), neighbor_vec[2])
-                neighbor_vec = self.point2vec3WithDegrees(neighbor_vec)
+                # neighbor_vec = self.point2vec3WithDegrees(neighbor_vec)
                 for clockwise in [True, False]:
                     if self.collision_free(point, neighbor, clockwise):
                         # weight = self.metric.dist(point[0], neighbor[0]).to_double() !!!!!!!!!!!!!!!!!
-                        weight = self.metric.dist(point_vec, neighbor_vec).to_double()
+                        # weight = self.metric.dist(point_vec, neighbor_vec).to_double()
+                        weight = self.distance_with_angle(
+                            point_vec, neighbor_vec, clockwise
+                        )
                         self.roadmap.add_edge(
                             point, neighbor, weight=weight, clockwise=clockwise
                         )
