@@ -67,7 +67,11 @@ class Metric_Rod(Metric):
                 rot_dist = pos2_theta + (MAX_ANGLE - pos1_theta)
             else:
                 rot_dist = pos2_theta - pos1_theta
-        return (weight_points * points_dist) + (weight_rotation * rot_dist)
+        d_squared = (weight_points * (points_dist**2)) + (
+            weight_rotation * (rot_dist**2)
+        )
+        d = math.sqrt(d_squared.to_double())
+        return FT(d)
 
 
 class RodRRT(Solver):
@@ -94,7 +98,7 @@ class RodRRT(Solver):
         self,
         num_landmarks,
         # !!!!!!!!!!!!!!!!!! how to choose eta
-        eta=10,
+        eta=1,
         bounding_margin_width_factor=Solver.DEFAULT_BOUNDS_MARGIN_FACTOR,
         nearest_neighbors=None,  #!!!!!!!!!!!!!!!! not needed
         metric=None,
@@ -111,7 +115,7 @@ class RodRRT(Solver):
 
         self.metric: Metric = metric
         if self.metric is None:
-            self.metric = Metric_Euclidean
+            self.metric = Metric_Rod
 
         self.sampler: Sampler = sampler
         if self.sampler is None:
