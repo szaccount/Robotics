@@ -221,6 +221,43 @@ class RodRRT(Solver):
             [point_vec[0], point_vec[1], (point_vec[2] / (MAX_ANGLE)) * 360],
         )
 
+    def steer_to_point(self, nearest_node, rand_node, is_clockwise):
+        """
+        Computes the steer point for RRT.
+        """
+        d = self.metric.dist(nearest_node, rand_node, is_clockwise)
+        ratio = self.eta / d
+        if ratio >= 1:
+            # The distance to the new point is smaller than the max allowed
+            return rand_node
+        # Finding node in between which is at distance `eta` from `nearest_node`
+        p_nearest, theta_nearest = nearest_node[0], nearest_node[1]
+        p_rand, theta_rand = rand_node[0], rand_node[1]
+        x_coor_new = ratio * (p_rand.x()) + (1 - ratio) * (p_nearest.x())
+        y_coor_new = ratio * (p_rand.y()) + (1 - ratio) * (p_nearest.y())
+        if is_clockwise:
+            if theta_rand <= theta_nearest:
+                theta_new = ratio * (theta_rand) + (1 - ratio) * (theta_nearest)
+            else:
+                theta_nearest_tag = -1 * theta_nearest
+                theta_rand_tag = MAX_ANGLE - theta_rand
+                theta_new = ratio * (theta_rand_tag) + (1 - ratio) * (theta_nearest_tag)
+                if theta_new < 0:
+                    theta_new = -1 * theta_new
+                else:
+                    theta_new = MAX_ANGLE - theta_new
+        else:
+            if theta_rand >= theta_nearest:
+                theta_new = ratio * (theta_rand) + (1 - ratio) * (theta_nearest)
+            else:
+                theta_nearest_tag = -1 * (MAX_ANGLE - theta_nearest)
+                theta_rand_tag = theta_rand
+                theta_new = ratio * (theta_rand_tag) + (1 - ratio) * (theta_nearest_tag)
+                if theta_new < 0:
+                    theta_new = MAX_ANGLE - (-1 * theta_new)
+
+        return (Point_2(x_coor_new, y_coor_new), theta_new)
+
     def load_scene(self, scene: Scene):
         """
         Load a scene into the solver.
@@ -254,12 +291,10 @@ class RodRRT(Solver):
             # !!!!!!!!!!!!!!!!!!!!! maybe check not adding existing node
             # !!!!!!!!!!!!!!!!!!!!! once in 100 rounds try to add the target node
             # self.nearest_neighbors.fit(list(map(self.point2vec3, self.roadmap.nodes))) #!!!!!!
-            p_rand_vec = self.point2vec3(p_rand)
-            neighbors = self.nearest_neighbors.k_nearest(p_rand_vec, 1)
-            nearest_node_in_tree = neighbors[0]
-            p_new = self.steer_to_point(
-                nearest_node_in_tree,
-            )
+            # p_rand_vec = self.point2vec3(p_rand)
+            # neighbors = self.nearest_neighbors.k_nearest(p_rand_vec, 1)
+            # nearest_node = neighbors[0]
+            p_new = self.steer_to_point(nearest_node, p_rand, is_clockwise)
             self.roadmap.add_node(p_rand)
             if i % 100 == 0 and self.verbose:
                 print("added", i, "landmarks in PRM", file=self.writer)
