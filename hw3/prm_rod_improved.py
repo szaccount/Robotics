@@ -159,8 +159,8 @@ class ImprovedRodPRM(Solver):
         robot = self.scene.robots[0]
         while True:
             sample = (self.sampler.sample(), FT(random.random() * 2 * math.pi))
-            MEAN_DISTANCE = 1
-            DEVIATION_DISTANCE = 1
+            MEAN_DISTANCE = 0.05
+            DEVIATION_DISTANCE = 0.001
             dist = abs(random.gauss(MEAN_DISTANCE, DEVIATION_DISTANCE))
             delta1 = (random.random() * 2 * dist) - dist
 
@@ -171,6 +171,7 @@ class ImprovedRodPRM(Solver):
             remaining_dist = max(remaining_dist - (theta_delta**2), 0)
             sqrt_remaining = math.sqrt(remaining_dist)
             delta2 = (random.random() * 2 * sqrt_remaining) - sqrt_remaining
+            # print(f"{dist=}, {delta1=}, {delta2=}, {theta_delta=}", file=self.writer)
 
             x_delta, y_delta = delta1, delta2
             if random.randint(0, 1):
@@ -247,6 +248,8 @@ class ImprovedRodPRM(Solver):
         :param scene: scene to load
         :type scene: :class:`~discopygal.solvers.Scene`
         """
+        # print(f"{self.num_landmarks=}, {self.k=}, {self.gaussian_ratio=}")
+
         super().load_scene(scene)
         self.sampler.set_scene(scene, self._bounding_box)
 
