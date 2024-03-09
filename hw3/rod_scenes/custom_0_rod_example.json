@@ -1,0 +1,144 @@
+{
+  "__class__": "Scene",
+  "obstacles": [
+    {
+      "__class__": "ObstaclePolygon",
+      "poly": [
+        [
+          -7,
+          -2
+        ],
+        [
+          -7,
+          -3
+        ],
+        [
+          10,
+          -3
+        ],
+        [
+          10,
+          -2
+        ]
+      ],
+      "data": {
+        "color": "",
+        "name": "",
+        "value": "",
+        "details": ""
+      }
+    },
+    {
+      "__class__": "ObstaclePolygon",
+      "poly": [
+        [
+          -7,
+          -2
+        ],
+        [
+          -7,
+          5
+        ],
+        [
+          -8,
+          5
+        ],
+        [
+          -8,
+          -2
+        ]
+      ],
+      "data": {
+        "color": "",
+        "name": "",
+        "value": "",
+        "details": ""
+      }
+    },
+    {
+      "__class__": "ObstaclePolygon",
+      "poly": [
+        [
+          10,
+          -2
+        ],
+        [
+          11,
+          -2
+        ],
+        [
+          11,
+          5
+        ],
+        [
+          10,
+          5
+        ]
+      ],
+      "data": {
+        "color": "",
+        "name": "",
+        "value": "",
+        "details": ""
+      }
+    },
+    {
+      "__class__": "ObstaclePolygon",
+      "poly": [
+        [
+          -7,
+          5
+        ],
+        [
+          10,
+          5
+        ],
+        [
+          10,
+          6
+        ],
+        [
+          -7,
+          6
+        ]
+      ],
+      "data": {
+        "color": "",
+        "name": "",
+        "value": "",
+        "details": ""
+      }
+    }
+  ],
+  "robots": [
+    {
+      "__class__": "RobotRod",
+      "length": 2.5,
+      "start": [
+        [
+          -6,
+          1
+        ],
+        1.57
+      ],
+      "end": [
+        [
+          7,
+          1
+        ],
+        4.71
+      ],
+      "data": {
+        "color": "",
+        "name": "",
+        "value": "",
+        "details": ""
+      }
+    }
+  ],
+  "metadata": {
+    "version": "1.0.6",
+    "solvers": "",
+    "details": ""
+  }
+}
