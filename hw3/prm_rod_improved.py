@@ -294,15 +294,11 @@ class ImprovedRodPRM(Solver):
             neighbors = self.nearest_neighbors.k_nearest(
                 self.point2vec3(point), self.k + 1
             )
-            # point_vec = self.point2vec3WithDegrees(point)
             point_vec = self.point2vec3(point)
             for neighbor_vec in neighbors:
                 neighbor = (Point_2(neighbor_vec[0], neighbor_vec[1]), neighbor_vec[2])
-                # neighbor_vec = self.point2vec3WithDegrees(neighbor_vec)
                 for clockwise in [True, False]:
                     if self.collision_free(point, neighbor, clockwise):
-                        # weight = self.metric.dist(point[0], neighbor[0]).to_double() !!!!!!!!!!!!!!!!!
-                        # weight = self.metric.dist(point_vec, neighbor_vec).to_double()
                         weight = self.distance_with_angle(
                             point_vec, neighbor_vec, clockwise
                         )
