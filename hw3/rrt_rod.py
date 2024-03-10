@@ -52,7 +52,7 @@ class Metric_Rod(Metric):
         :param weight_rotation: weight of the rotation distance part
         :param weight_rotation: :class:`~discopygal.bindings.FT`
 
-        :return: distance measure between p and q
+        :return: distance measure between pos1 and pos2
         :rtype: :class:`~discopygal.bindings.FT`
         """
         pos1_p, pos1_theta = pos1[0], pos1[1]
@@ -100,7 +100,6 @@ class RodRRT(Solver):
     def __init__(
         self,
         num_landmarks,
-        # !!!!!!!!!!!!!!!!!! how to choose eta
         eta=1,
         bounding_margin_width_factor=Solver.DEFAULT_BOUNDS_MARGIN_FACTOR,
         nearest_neighbors=None,  #!!!!!!!!!!!!!!!! not needed
