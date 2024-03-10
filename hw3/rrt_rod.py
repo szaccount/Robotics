@@ -109,7 +109,7 @@ class RodRRT(Solver):
         super().__init__(bounding_margin_width_factor)
         self.num_landmarks = num_landmarks
 
-        self.eta = eta
+        self.eta = FT(eta)
 
         self.nearest_neighbors: NearestNeighbors = nearest_neighbors
         if self.nearest_neighbors is None:
@@ -339,7 +339,7 @@ class RodRRT(Solver):
             # !!!!!!!! probably need to switch order
             if self.collision_free(nearest_node, p_new, is_clockwise):
                 if self.same_configuration(self.end, p_new):
-                    print("Same configuration ##########", file=self.writer)
+                    # print("Same configuration ##########", file=self.writer)
                     added_end = True
                 self.roadmap.add_node(p_new)
                 weight = self.metric.dist(nearest_node, p_new, is_clockwise).to_double()
@@ -352,17 +352,17 @@ class RodRRT(Solver):
         # Try adding the end point
         p_new = self.end
         nearest_node, is_clockwise = self.find_nearest_node(p_new)
-        print(f"nearest node to the {self.end=} is {nearest_node=}", file=self.writer)
+        # print(f"nearest node to the {self.end=} is {nearest_node=}", file=self.writer)
         self.roadmap.add_node(p_new)
         if self.collision_free(nearest_node, p_new, is_clockwise):
-            print("Edge to end is collision free", file=self.writer)
+            # print("Edge to end is collision free", file=self.writer)
             weight = self.metric.dist(nearest_node, p_new, is_clockwise).to_double()
             self.roadmap.add_edge(
                 nearest_node, p_new, weight=weight, clockwise=is_clockwise
             )
         elif self.collision_free(nearest_node, p_new, (not is_clockwise)):
             # Trying by rotating to the other direction
-            print("Edge to end is collision free on second try", file=self.writer)
+            # print("Edge to end is collision free on second try", file=self.writer)
             weight = self.metric.dist(
                 nearest_node, p_new, (not is_clockwise)
             ).to_double()
