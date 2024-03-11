@@ -39,7 +39,6 @@ class ImprovedRodPRM(Solver):
     :type sampler: :class:`~discopygal.solvers.samplers.Sampler`
     """
 
-    # MAX_ANGLE = 2 * math.pi
     MAX_ANGLE_FT = FT(2 * math.pi)
 
     def __init__(
@@ -171,7 +170,6 @@ class ImprovedRodPRM(Solver):
             remaining_dist = max(remaining_dist - (theta_delta**2), 0)
             sqrt_remaining = math.sqrt(remaining_dist)
             delta2 = (random.random() * 2 * sqrt_remaining) - sqrt_remaining
-            # print(f"{dist=}, {delta1=}, {delta2=}, {theta_delta=}", file=self.writer)
 
             x_delta, y_delta = delta1, delta2
             if random.randint(0, 1):
@@ -248,7 +246,6 @@ class ImprovedRodPRM(Solver):
         :param scene: scene to load
         :type scene: :class:`~discopygal.solvers.Scene`
         """
-        # print(f"{self.num_landmarks=}, {self.k=}, {self.gaussian_ratio=}")
 
         super().load_scene(scene)
         self.sampler.set_scene(scene, self._bounding_box)
