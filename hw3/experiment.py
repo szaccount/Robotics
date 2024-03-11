@@ -4,10 +4,9 @@ from timeit import default_timer as timer
 from discopygal.solvers import Scene
 from discopygal.solvers.verify_paths import verify_paths
 
-# from discopygal_tools.solver_viewer import start_gui
-
-from prm_rod import BasicRodPRM
+# from prm_rod import BasicRodPRM
 from prm_rod_improved import ImprovedRodPRM
+
 from rrt_rod import RodRRT
 
 
@@ -17,11 +16,13 @@ with open(scene_json, "r") as fp:
     scene = Scene.from_dict(json.load(fp))
 
 NUM_EXPERIMENTS = 10
-NUM_LANDMARKS = 6000
+NUM_LANDMARKS = 100
 K = 15
 ETA = 1
 
 print(f"{scene_json=}, {NUM_EXPERIMENTS=}, {NUM_LANDMARKS=}, {K=}, {ETA=}")
+
+########################## Basic PRM ############################
 
 # success_counter = 0
 # start = timer()
@@ -51,6 +52,8 @@ print(f"{scene_json=}, {NUM_EXPERIMENTS=}, {NUM_LANDMARKS=}, {K=}, {ETA=}")
 # )
 # print()
 
+########################## RRT ############################
+
 success_counter_rrt = 0
 start_rrt = timer()
 for i in range(NUM_EXPERIMENTS):
@@ -79,9 +82,9 @@ print(
 )
 print()
 
-"""
-# for gaus_ratio in [0.2, 0.8, 1]:
-for gaus_ratio in [0.2, 1]:
+########################## Improved PRM ############################
+
+for gaus_ratio in [0.2, 0.8, 1]:
     success_counter_improved = 0
     start_improved = timer()
     for i in range(NUM_EXPERIMENTS):
@@ -111,4 +114,3 @@ for gaus_ratio in [0.2, 1]:
         f"Did {NUM_EXPERIMENTS} experiments, average_time={average_time_improved}, success_rate={success_rate_improved}%"
     )
     print()
-"""
