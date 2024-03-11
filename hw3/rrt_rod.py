@@ -88,9 +88,7 @@ class RodRRT(Solver):
     :type num_landmarks: :class:`int`
     :param eta: max length for new RRT edge.
     :type eta: :class:`~discopygal.bindings.FT`
-    :param nearest_neighbors: a nearest neighbors algorithm. if None then use sklearn implementation
-    :type nearest_neighbors: :class:`~discopygal.solvers.nearest_neighbors.NearestNeighbors` or :class:`None`
-    :param metric: a metric for weighing edges, can be different then the nearest_neighbors metric!
+    :param metric: a metric for weighing edges.
         If None then use euclidean metric
     :type metric: :class:`~discopygal.solvers.metrics.Metric` or :class:`None`
     :param sampler: sampling algorithm/method. if None then use uniform sampling
@@ -102,7 +100,6 @@ class RodRRT(Solver):
         num_landmarks,
         eta=1,
         bounding_margin_width_factor=Solver.DEFAULT_BOUNDS_MARGIN_FACTOR,
-        nearest_neighbors=None,  #!!!!!!!!!!!!!!!! not needed
         metric=None,
         sampler=None,
     ):
@@ -110,10 +107,6 @@ class RodRRT(Solver):
         self.num_landmarks = num_landmarks
 
         self.eta = FT(eta)
-
-        self.nearest_neighbors: NearestNeighbors = nearest_neighbors
-        if self.nearest_neighbors is None:
-            self.nearest_neighbors = NearestNeighbors_sklearn()
 
         self.metric: Metric = metric
         if self.metric is None:
@@ -161,7 +154,6 @@ class RodRRT(Solver):
             d["num_landmarks"],
             FT(d["eta"]),
             FT(d["bounding_margin_width_factor"]),
-            None,
             None,
             None,
         )
@@ -329,17 +321,13 @@ class RodRRT(Solver):
         # Add points to the tree
         for i in range(self.num_landmarks):
             p_rand = self.sample_free()
-            # !!!!!!!!!!!!!!!!!!!!! maybe check not adding existing node
-            # !!!!!!!!!!!!!!!!!!!!! once in 100 rounds try to add the target node
             if i % 100 == 0 and not added_end:
                 # Trying to add the end node
                 p_rand = self.end
             nearest_node, is_clockwise = self.find_nearest_node(p_rand)
             p_new = self.steer_to_point(nearest_node, p_rand, is_clockwise)
-            # !!!!!!!! probably need to switch order
             if self.collision_free(nearest_node, p_new, is_clockwise):
                 if self.same_configuration(self.end, p_new):
-                    # print("Same configuration ##########", file=self.writer)
                     added_end = True
                 self.roadmap.add_node(p_new)
                 weight = self.metric.dist(nearest_node, p_new, is_clockwise).to_double()
@@ -352,17 +340,14 @@ class RodRRT(Solver):
         # Try adding the end point
         p_new = self.end
         nearest_node, is_clockwise = self.find_nearest_node(p_new)
-        # print(f"nearest node to the {self.end=} is {nearest_node=}", file=self.writer)
         self.roadmap.add_node(p_new)
         if self.collision_free(nearest_node, p_new, is_clockwise):
-            # print("Edge to end is collision free", file=self.writer)
             weight = self.metric.dist(nearest_node, p_new, is_clockwise).to_double()
             self.roadmap.add_edge(
                 nearest_node, p_new, weight=weight, clockwise=is_clockwise
             )
         elif self.collision_free(nearest_node, p_new, (not is_clockwise)):
             # Trying by rotating to the other direction
-            # print("Edge to end is collision free on second try", file=self.writer)
             weight = self.metric.dist(
                 nearest_node, p_new, (not is_clockwise)
             ).to_double()
