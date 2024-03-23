@@ -223,69 +223,106 @@ class PRM_TwoRobots(Solver):
             self._create_prm(iter_roadmap)
             roadmaps.append(iter_roadmap)
 
-        # Extracting best paths from the PRMs
-        self.roadmap = nx.Graph() # The final roadmap built from the points of the best paths
+        print("", file=self.writer)
+        print("Creating merged roadmap", file=self.writer)
+
+        """
+        Extracting best paths from the PRMs
+        """
+        # The final roadmap built from the points of the best paths
+        self.roadmap = nx.Graph()
         paths = []
-        path_cntr = 0
         for filled_roadmap in roadmaps:
             if nx.algorithms.has_path(filled_roadmap, self.start, self.end):
-                if self.verbose:
-                    print("no path found...", file=self.writer)
-                return PathCollection()
+                tensor_path = nx.algorithms.shortest_path(
+                    filled_roadmap, self.start, self.end, weight="weight"
+                )
+                paths.append(tensor_path)
 
-            # Convert from a sequence of Point_d points to PathCollection
-            tensor_path = nx.algorithms.shortest_path(
-                filled_roadmap, self.start, self.end, weight="weight"
-            )
-            path_collection = PathCollection()
-            for i, robot in enumerate(self.scene.robots):
-                points = []
-                for point in tensor_path:
-
-        """
-        !!!!!!!!!!!!!!!!!!!!!!!!!!!
-        !!!!!!!!!!!!!!!!!!!!!!!!!!!
-        !!!!!!!!!!!!!!!!!!!!!!!!!!!
-        """
-        self.roadmap = nx.Graph()
-
-        # Add start & end points
-        self.start = conversions.Point_2_list_to_Point_d(
-            [robot.start for robot in scene.robots]
-        )
-        self.end = conversions.Point_2_list_to_Point_d(
-            [robot.end for robot in scene.robots]
-        )
+        print("Adding points from all the paths", file=self.writer)
+        # Adding points from each path to the roadmap
         self.roadmap.add_node(self.start)
         self.roadmap.add_node(self.end)
+        for path in paths:
+            # first and last points are start and finish
+            for point in path[1:-1]:
+                self.roadmap.add_node(point)
 
-        # Add valid points
-        for i in range(self.num_landmarks):
-            p_rand = self.sample_free()
-            self.roadmap.add_node(p_rand)
-            if i % 100 == 0 and self.verbose:
-                print("added", i, "landmarks in PRM", file=self.writer)
+        print("Adding possible edges from each path", file=self.writer)
+        # Adding possible edges from each path
+        for path in paths:
+            for i in range(len(path)):
+                for j in range(len(path)):
+                    if i > j:
+                        if self.collision_free(path[i], path[j]):
+                            self.roadmap.add_edge(
+                                path[j],
+                                path[i],
+                                weight=self.metric.dist(path[j], path[i]).to_double(),
+                            )
 
-        self.nearest_neighbors.fit(list(self.roadmap.nodes))
+        print("Adding edges from between paths", file=self.writer)
+        # Adding edges between paths
+        for indx1 in range(len(paths)):
+            for indx2 in range(len(paths)):
+                if indx1 > indx2:
+                    path_1 = paths[indx1]
+                    path_2 = paths[indx2]
+                    for point_p1 in path_1[1:-1]:
+                        for point_p2 in path_2[1:-1]:
+                            if self.collision_free(point_p1, point_p2):
+                                self.roadmap.add_edge(
+                                    point_p2,
+                                    point_p1,
+                                    weight=self.metric.dist(
+                                        point_p2, point_p1
+                                    ).to_double(),
+                                )
 
-        # Connect all points to their k nearest neighbors
-        for cnt, point in enumerate(self.roadmap.nodes):
-            neighbors = self.nearest_neighbors.k_nearest(point, self.k + 1)
-            for neighbor in neighbors:
-                if self.collision_free(neighbor, point):
-                    self.roadmap.add_edge(
-                        point,
-                        neighbor,
-                        weight=self.metric.dist(point, neighbor).to_double(),
-                    )
+        # """
+        # !!!!!!!!!!!!!!!!!!!!!!!!!!!
+        # !!!!!!!!!!!!!!!!!!!!!!!!!!!
+        # !!!!!!!!!!!!!!!!!!!!!!!!!!!
+        # """
+        # self.roadmap = nx.Graph()
 
-            if cnt % 100 == 0 and self.verbose:
-                print(
-                    "connected",
-                    cnt,
-                    "landmarks to their nearest neighbors",
-                    file=self.writer,
-                )
+        # # Add start & end points
+        # self.start = conversions.Point_2_list_to_Point_d(
+        #     [robot.start for robot in scene.robots]
+        # )
+        # self.end = conversions.Point_2_list_to_Point_d(
+        #     [robot.end for robot in scene.robots]
+        # )
+        # self.roadmap.add_node(self.start)
+        # self.roadmap.add_node(self.end)
+
+        # # Add valid points
+        # for i in range(self.num_landmarks):
+        #     p_rand = self.sample_free()
+        #     self.roadmap.add_node(p_rand)
+        #     if i % 100 == 0 and self.verbose:
+        #         print("added", i, "landmarks in PRM", file=self.writer)
+
+        # self.nearest_neighbors.fit(list(self.roadmap.nodes))
+
+        # # Connect all points to their k nearest neighbors
+        # for cnt, point in enumerate(self.roadmap.nodes):
+        #     neighbors = self.nearest_neighbors.k_nearest(point, self.k + 1)
+        #     for neighbor in neighbors:
+        #         if self.collision_free(neighbor, point):
+        #             self.roadmap.add_edge(
+        #                 point,
+        #                 neighbor,
+        #                 weight=self.metric.dist(point, neighbor).to_double(),
+        #             )
+
+        #     if cnt % 100 == 0 and self.verbose:
+        #         print(
+        #             "connected",
+        #             cnt,
+        #             "landmarks to their nearest neighbors",
+        #             file=self.writer,
+        #         )
 
     def solve(self):
         """
