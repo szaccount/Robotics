@@ -185,24 +185,26 @@ class PRM_Vertical(Solver):
         clearance = min(up_clearance, down_clearance)
         return clearance
 
-    def edge_weight_by_clearance(self, p, q):
+    def point_weight_by_clearance(self, p):
         """
-        Calculates the weight of the edge between p,q based on their clearance
+        Returns the weight of p based on its clearance
         """
         p_clearance = self.vertical_clearance(p)
-        q_clearance = self.vertical_clearance(q)
         if p_clearance <= 0:
             p_weight = sys.float_info.max
         else:
             p_weight = 1 / p_clearance
 
-        if q_clearance <= 0:
-            q_weight = sys.float_info.max
-        else:
-            q_weight = 1 / q_clearance
+        return p_weight
 
-        weight = max(p_weight, q_weight)
-        return weight
+    # def edge_weight_by_clearance(self, p, q):
+    #     """
+    #     Returns the weight of the edge between p,q based on their clearance
+    #     """
+    #     p_weight = self.point_weight_by_clearance(p)
+    #     q_weight = self.point_weight_by_clearance(q)
+    #     weight = max(p_weight, q_weight)
+    #     return weight
 
     def load_scene(self, scene: Scene):
         """
@@ -232,10 +234,15 @@ class PRM_Vertical(Solver):
         self.roadmap.add_node(self.start)
         self.roadmap.add_node(self.end)
 
+        weight_dict = dict()
+        weight_dict[self.start] = self.point_weight_by_clearance(self.start)
+        weight_dict[self.end] = self.point_weight_by_clearance(self.end)
+
         # Add valid points
         for i in range(self.num_landmarks):
             p_rand = self.sample_free()
             self.roadmap.add_node(p_rand)
+            weight_dict[p_rand] = self.point_weight_by_clearance(p_rand)
             if i % 100 == 0 and self.verbose:
                 print("added", i, "landmarks in PRM", file=self.writer)
 
@@ -246,12 +253,18 @@ class PRM_Vertical(Solver):
             neighbors = self.nearest_neighbors.k_nearest(point, self.k + 1)
             for neighbor in neighbors:
                 if self.collision_free(neighbor, point):
+                    if point not in weight_dict:
+                        weight_dict[point] = self.point_weight_by_clearance(point)
+                    if neighbor not in weight_dict:
+                        weight_dict[neighbor] = self.point_weight_by_clearance(neighbor)
+                    edge_weight = max(weight_dict[point], weight_dict[neighbor])
                     self.roadmap.add_edge(
                         point,
                         neighbor,
                         # !!!!!!!!!!!!!!!!!!!! need to change the weight for clearance
                         # weight=self.metric.dist(point, neighbor).to_double(),
-                        weight=self.edge_weight_by_clearance(point, neighbor),
+                        # weight=self.edge_weight_by_clearance(point, neighbor),
+                        weight=edge_weight,
                     )
 
             if cnt % 100 == 0 and self.verbose:
