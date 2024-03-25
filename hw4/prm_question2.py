@@ -18,10 +18,7 @@ from discopygal.solvers.Solver import Solver
 
 class PRM_TwoRobots(Solver):
     """
-    !!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    The basic implementation of a Probabilistic Road Map (PRM) solver.
-    Supports multi-robot motion planning, though might be inefficient for more than
-    two-three robots.
+    Improved PRM solver for two robots.
 
     :param num_landmarks: number of landmarks to sample (per HGraph iteration)
     :type num_landmarks: :class:`int`
@@ -180,7 +177,6 @@ class PRM_TwoRobots(Solver):
                     roadmap.add_edge(
                         point,
                         neighbor,
-                        # weight=self.metric.dist(point, neighbor).to_double(),
                         weight=self.two_robots_weight(point, neighbor),
                     )
 
@@ -275,7 +271,6 @@ class PRM_TwoRobots(Solver):
                             self.roadmap.add_edge(
                                 path[j],
                                 path[i],
-                                # weight=self.metric.dist(path[j], path[i]).to_double(),
                                 weight=self.two_robots_weight(path[j], path[i]),
                             )
 
@@ -292,56 +287,8 @@ class PRM_TwoRobots(Solver):
                                 self.roadmap.add_edge(
                                     point_p2,
                                     point_p1,
-                                    # weight=self.metric.dist(
-                                    #     point_p2, point_p1
-                                    # ).to_double(),
                                     weight=self.two_robots_weight(point_p2, point_p1),
                                 )
-
-        # """
-        # !!!!!!!!!!!!!!!!!!!!!!!!!!!
-        # !!!!!!!!!!!!!!!!!!!!!!!!!!!
-        # !!!!!!!!!!!!!!!!!!!!!!!!!!!
-        # """
-        # self.roadmap = nx.Graph()
-
-        # # Add start & end points
-        # self.start = conversions.Point_2_list_to_Point_d(
-        #     [robot.start for robot in scene.robots]
-        # )
-        # self.end = conversions.Point_2_list_to_Point_d(
-        #     [robot.end for robot in scene.robots]
-        # )
-        # self.roadmap.add_node(self.start)
-        # self.roadmap.add_node(self.end)
-
-        # # Add valid points
-        # for i in range(self.num_landmarks):
-        #     p_rand = self.sample_free()
-        #     self.roadmap.add_node(p_rand)
-        #     if i % 100 == 0 and self.verbose:
-        #         print("added", i, "landmarks in PRM", file=self.writer)
-
-        # self.nearest_neighbors.fit(list(self.roadmap.nodes))
-
-        # # Connect all points to their k nearest neighbors
-        # for cnt, point in enumerate(self.roadmap.nodes):
-        #     neighbors = self.nearest_neighbors.k_nearest(point, self.k + 1)
-        #     for neighbor in neighbors:
-        #         if self.collision_free(neighbor, point):
-        #             self.roadmap.add_edge(
-        #                 point,
-        #                 neighbor,
-        #                 weight=self.metric.dist(point, neighbor).to_double(),
-        #             )
-
-        #     if cnt % 100 == 0 and self.verbose:
-        #         print(
-        #             "connected",
-        #             cnt,
-        #             "landmarks to their nearest neighbors",
-        #             file=self.writer,
-        #         )
 
     def solve(self):
         """
@@ -384,29 +331,27 @@ class PRM_TwoRobots(Solver):
         return self.paths_total_length
 
 
-"""
-The following code is used for running the experiments requested in the question.
-"""
-
-
 def experiment_two_robots():
+    """
+    Used for running the experiments requested in the question.
+    """
     import json
     from timeit import default_timer as timer
 
     from discopygal.solvers import Scene
     from discopygal.solvers.verify_paths import verify_paths
 
-    from prm import PRM
+    # from prm import PRM # The original PRM with path distance measurments.
 
-    scene_json = "scenes_2/test_corridor.json"
+    scene_json = "scenes_2/big_centered_obstacle.json"
 
     with open(scene_json, "r") as fp:
         scene = Scene.from_dict(json.load(fp))
 
     NUM_EXPERIMENTS = 10
-    NUM_LANDMARKS = 1000
+    NUM_LANDMARKS = 300
     K = 15
-    NUM_ITERATIONS = 4
+    NUM_ITERATIONS = 3
 
     print(f"{scene_json=} {NUM_EXPERIMENTS=}")
 
@@ -480,4 +425,4 @@ def experiment_two_robots():
     print()
 
 
-experiment_two_robots()
+# experiment_two_robots()
