@@ -39,7 +39,8 @@ class PRM(Solver):
         self,
         num_landmarks,
         k,
-        bounding_margin_width_factor=Solver.DEFAULT_BOUNDS_MARGIN_FACTOR,
+        # bounding_margin_width_factor=Solver.DEFAULT_BOUNDS_MARGIN_FACTOR,
+        bounding_margin_width_factor=0,
         nearest_neighbors=None,
         metric=None,
         sampler=None,
@@ -65,6 +66,8 @@ class PRM(Solver):
         self.start = None
         self.end = None
 
+        self.paths_total_length = None
+
     @staticmethod
     def get_arguments():
         """
@@ -80,7 +83,8 @@ class PRM(Solver):
             "k": ("K for nearest neighbors:", 15, int),
             "bounding_margin_width_factor": (
                 "Margin width factor (for bounding box):",
-                Solver.DEFAULT_BOUNDS_MARGIN_FACTOR,
+                # Solver.DEFAULT_BOUNDS_MARGIN_FACTOR,
+                0,
                 FT,
             ),
         }
@@ -151,6 +155,18 @@ class PRM(Solver):
         p_rand = conversions.Point_2_list_to_Point_d(p_rand)
         return p_rand
 
+    def two_robots_weight(self, p, q):
+        """
+        Returns weight for edge between p,q which is the sum of distances
+        the two robots pass between p,q separately.
+        """
+        p_list = conversions.Point_d_to_Point_2_list(p)
+        q_list = conversions.Point_d_to_Point_2_list(q)
+        sum_dist = 0
+        for i in range(len(p_list)):
+            sum_dist += self.metric.dist(p_list[i], q_list[i]).to_double()
+        return sum_dist
+
     def load_scene(self, scene: Scene):
         """
         Load a scene into the solver.
@@ -162,11 +178,13 @@ class PRM(Solver):
         super().load_scene(scene)
         self.sampler.set_scene(scene, self._bounding_box)
 
+        self.paths_total_length = 0
+
         # Build collision detection for each robot
         for robot in scene.robots:
-            self.collision_detection[
-                robot
-            ] = collision_detection.ObjectCollisionDetection(scene.obstacles, robot)
+            self.collision_detection[robot] = (
+                collision_detection.ObjectCollisionDetection(scene.obstacles, robot)
+            )
 
         ################
         # Build the PRM
@@ -228,6 +246,13 @@ class PRM(Solver):
         tensor_path = nx.algorithms.shortest_path(
             self.roadmap, self.start, self.end, weight="weight"
         )
+
+        # getting total length of paths for the robots
+        for i in range(len(tensor_path) - 1):
+            self.paths_total_length += self.two_robots_weight(
+                tensor_path[i], tensor_path[i + 1]
+            )
+
         path_collection = PathCollection()
         for i, robot in enumerate(self.scene.robots):
             points = []
@@ -240,3 +265,6 @@ class PRM(Solver):
             print("successfully found a path...", file=self.writer)
 
         return path_collection
+
+    def get_paths_total_length(self):
+        return self.paths_total_length
