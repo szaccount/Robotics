@@ -178,7 +178,8 @@ class PRM_TwoRobots(Solver):
                     roadmap.add_edge(
                         point,
                         neighbor,
-                        weight=self.metric.dist(point, neighbor).to_double(),
+                        # weight=self.metric.dist(point, neighbor).to_double(),
+                        weight=self.two_robots_weight(point, neighbor),
                     )
 
             if cnt % 100 == 0 and self.verbose:
@@ -188,6 +189,18 @@ class PRM_TwoRobots(Solver):
                     "landmarks to their nearest neighbors",
                     file=self.writer,
                 )
+
+    def two_robots_weight(self, p, q):
+        """
+        Returns weight for edge between p,q which is the sum of distances
+        the two robots pass between p,q separately.
+        """
+        p_list = conversions.Point_d_to_Point_2_list(p)
+        q_list = conversions.Point_d_to_Point_2_list(q)
+        sum_dist = 0
+        for i in range(len(p_list)):
+            sum_dist += self.metric.dist(p_list[i], q_list[i]).to_double()
+        return sum_dist
 
     def load_scene(self, scene: Scene):
         """
@@ -258,7 +271,8 @@ class PRM_TwoRobots(Solver):
                             self.roadmap.add_edge(
                                 path[j],
                                 path[i],
-                                weight=self.metric.dist(path[j], path[i]).to_double(),
+                                # weight=self.metric.dist(path[j], path[i]).to_double(),
+                                weight=self.two_robots_weight(path[j], path[i]),
                             )
 
         print("Adding edges from between paths", file=self.writer)
@@ -274,9 +288,10 @@ class PRM_TwoRobots(Solver):
                                 self.roadmap.add_edge(
                                     point_p2,
                                     point_p1,
-                                    weight=self.metric.dist(
-                                        point_p2, point_p1
-                                    ).to_double(),
+                                    # weight=self.metric.dist(
+                                    #     point_p2, point_p1
+                                    # ).to_double(),
+                                    weight=self.two_robots_weight(point_p2, point_p1),
                                 )
 
         # """
