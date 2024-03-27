@@ -20,11 +20,7 @@ from discopygal.solvers.Solver import Solver
 
 class PRM_Vertical(Solver):
     """
-    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
-    The basic implementation of a Probabilistic Road Map (PRM) solver.
-    Supports multi-robot motion planning, though might be inefficient for more than
-    two-three robots.
+    Single robot PRM improved for paths with big vertical clearance.
 
     :param num_landmarks: number of landmarks to sample
     :type num_landmarks: :class:`int`
